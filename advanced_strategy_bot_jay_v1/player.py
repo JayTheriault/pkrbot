@@ -24,9 +24,9 @@ class Player(Bot):
         Nothing.
         '''
         
-        values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
+        self.values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
 
-        card_strength = {v:values.index(v) for v in values}
+        card_strength = {v:self.values.index(v) for v in self.values}
         #creates dictionary to see what cards win
 
         #create a directed graph with 13 nodes and if a certain card beats another add a node
@@ -100,7 +100,12 @@ class Player(Bot):
             min_raise, max_raise = round_state.raise_bounds()  # the smallest and largest numbers of chips for a legal bet/raise
             min_cost = min_raise - my_pip  # the cost of a minimum bet/raise
             max_cost = max_raise - my_pip  # the cost of a maximum bet/raise
-            
+        
+
+        
+
+
+
         if CheckAction in legal_actions:  # check-call
             return CheckAction()
         return CallAction()
@@ -139,26 +144,98 @@ class Player(Bot):
             return True
         return False
 
+    def checkPair(self, cards, board_cards):
+        '''
+        returns first found pair and False if no pair
+
+        '''
+        if cards[0][0] == cards[1][0]:
+            return True
+        
+        for card in board_cards:
+            if cards[0][0] == card[0]:
+                return card[0]
+            if cards[1][0] == card[0]:
+                return card[0]
+
+            for card1 in board_cards:
+                for card2 in board_cards:
+                    if card1[0] == card2[0] and card1 != card2:
+                        return card[0]
+        return False
+
+    def check2Pair(self, cards, board_cards):
+        pairs = []
+        poss_values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
+        if cards[0][0] == cards[1][0]:
+            if cards[0][0] in poss_values:
+                pairs.append(cards[0][0])
+                poss_values.remove(cards[0][0])
+        
+        for card in board_cards:
+            if cards[0][0] == card[0]:
+                if card[0] in poss_values:
+                    pairs.append(card[0])
+                    poss_values.remove(card[0])
+            if cards[1][0] == card[0]:
+                if card[0] in poss_values:
+                    pairs.append(card[0])
+                    poss_values.remove(card[0])
+
+            for card1 in board_cards:
+                for card2 in board_cards:
+                    if card1[0] == card2[0] and card1 != card2 and card1[0] in poss_values:
+                        pairs.append(card1[0])
+                        poss_values.remove(card1[0])
+        if len(pairs) < 2:
+            return False
+        return pairs
+
+    def check3ofKind(self, cards, board_cards):
+        return None
+
+    def checkFullHouse(self, cards, board_cards):
+        if self.check2Pair(cards, board_cards) and self.check3ofKind(cards, board_cards):
+            return True
+        return False
+
+    def highCard(self, cards, board_cards):
+        high_card = cards[0][0]
+        if self.values.index(cards[1][0]) > self.values.index(high_card):
+            high_card = cards[1][0]
+        for card in board_cards:
+            if self.values.index(card[0]) > self.values.index(high_card):
+                high_card = card[0]
+        return high_card
 
 
     def updateCardStrength(self, my_delta, previous_state, street, my_cards, opp_cards):
         board_cards = previous_state.deck[:street]
         
+        print(self.check2Pair(my_cards, board_cards))
+        if self.check2Pair(my_cards, board_cards) != False:
+            print(my_cards, opp_cards, board_cards)
+
         if self.checkFlush(my_cards, board_cards) or self.checkFlush(opp_cards, board_cards):
             print('flush')
             print(my_cards, opp_cards, board_cards)
-            pass
 
-        if my_delta == 0:
-            #check for same high card
-            #share high card or high pair
-
-            #check for pairs, if either of us has pair that both don't have we know there must be a straight
-
-            #check if we have the same high card, if so then do nothing
-
-            #if different high cards swap highest card with highest shared card
-            pass
+        elif my_delta == 0:
+            # print('tie')
+            # print(my_cards, opp_cards, board_cards)
+            if self.checkPair(my_cards, board_cards) != self.checkPair(opp_cards, board_cards) and self.check2Pair(my_cards, board_cards) == False:
+                #check for pairs, if either of us has pair that both don't have we know there must be a straight
+                #straight?
+                pass
+            elif self.checkPair(my_cards, board_cards) == False and self.checkPair(opp_cards, board_cards) == False:
+                if self.highCard(my_cards, board_cards) != self.highCard(opp_cards, board_cards):
+                    if self.values.index(self.highCard(my_cards, board_cards)) > self.values.index(self.highCard(opp_cards, board_cards)):
+                        #swap my high card with higest shared card
+                        pass
+                    else:
+                        #swap opp high card with highest shared card
+                        pass
+                #swap value of my highest card with highest shared card value iff I think my highest card is better than highest shared card
         elif my_delta >= 0:
             #see how my hand is better than opp hand, update cards as needed
 
@@ -187,3 +264,4 @@ if __name__ == '__main__':
 
 
 
+ 
