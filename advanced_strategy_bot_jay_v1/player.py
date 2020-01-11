@@ -26,7 +26,10 @@ class Player(Bot):
         
         self.values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
 
-        card_strength = {v:self.values.index(v) for v in self.values}
+        self.nodes = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
+        self.edges = []
+
+        # card_strength = {v:self.values.index(v) for v in self.values}
         #creates dictionary to see what cards win
 
         #create a directed graph with 13 nodes and if a certain card beats another add a node
@@ -68,7 +71,7 @@ class Player(Bot):
         my_cards = previous_state.hands[active]  # your cards
         opp_cards = previous_state.hands[1-active]  # opponent's cards or [] if not revealed
 
-        self.updateCardStrength(my_delta, previous_state, street, my_cards, opp_cards)
+        self.updateCardStrength(my_delta, game_state, previous_state, street, my_cards, opp_cards)
         
 
     def get_action(self, game_state, round_state, active):
@@ -96,12 +99,16 @@ class Player(Bot):
         my_contribution = STARTING_STACK - my_stack  # the number of chips you have contributed to the pot
         opp_contribution = STARTING_STACK - opp_stack  # the number of chips your opponent has contributed to the pot
 
+        pot_after_continue = my_contribution + opp_contribution + continue_cost
+
         if RaiseAction in legal_actions:
             min_raise, max_raise = round_state.raise_bounds()  # the smallest and largest numbers of chips for a legal bet/raise
             min_cost = min_raise - my_pip  # the cost of a minimum bet/raise
             max_cost = max_raise - my_pip  # the cost of a maximum bet/raise
         
 
+        if game_state.round_num == NUM_ROUNDS:
+            print(self.edges)
         
 
 
@@ -116,32 +123,39 @@ class Player(Bot):
         Returns True if there is a flush, False otherwise
 
         '''
-        clubs = diamonds = hearts = spades = 0
+        clubs = []
+        diamonds = []
+        hearts = []
+        spades = []
 
-        for card in range(len(cards)):
-            if cards[card][1] == 'c':
-                clubs += 1
-            elif cards[card][1] == 'd':
-                diamonds += 1
-            elif cards[card][1] == 'h':
-                hearts += 1
+        for card in cards:
+            if card[1] == 'c':
+                clubs += card[0]
+            elif card[1] == 'd':
+                diamonds += card[0]
+            elif card[1] == 'h':
+                hearts += card[0]
             else:
-                spades += 1
+                spades += card[0]
 
-        for card in range(len(board_cards)):
-            if board_cards[card][1] == 'c':
-                clubs += 1
-            elif board_cards[card][1] == 'd':
-                diamonds += 1
-            elif board_cards[card][1] == 'h':
-                hearts += 1
+        for card in board_cards:
+            if card[1] == 'c':
+                clubs += card[0]
+            elif card[1] == 'd':
+                diamonds += card[0]
+            elif card[1] == 'h':
+                hearts += card[0]
             else:
-                spades += 1
+                spades += card[0]
 
-        # print('test')
-
-        if clubs >= 5 or diamonds >= 5 or spades >= 5 or hearts >= 5:
-            return True
+        if len(clubs) >= 5:
+            return clubs
+        elif len(diamonds) >= 5:
+            return diamonds
+        elif len(spades) >= 5:
+            return spades
+        elif len(hearts) >= 5:
+            return hearts
         return False
 
     def checkPair(self, cards, board_cards):
@@ -149,8 +163,10 @@ class Player(Bot):
         returns first found pair and False if no pair
 
         '''
+        if cards == []:
+            return False
         if cards[0][0] == cards[1][0]:
-            return True
+            return cards[0][0]
         
         for card in board_cards:
             if cards[0][0] == card[0]:
@@ -167,6 +183,8 @@ class Player(Bot):
     def check2Pair(self, cards, board_cards):
         pairs = []
         poss_values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
+        if cards == []:
+            return False
         if cards[0][0] == cards[1][0]:
             if cards[0][0] in poss_values:
                 pairs.append(cards[0][0])
@@ -192,61 +210,225 @@ class Player(Bot):
         return pairs
 
     def check3ofKind(self, cards, board_cards):
-        return None
+        if cards == []:
+            return False
 
-    def checkFullHouse(self, cards, board_cards):
-        if self.check2Pair(cards, board_cards) and self.check3ofKind(cards, board_cards):
-            return True
+        if cards[0][0] == cards[1][0]:
+            for card in board_cards:
+                if cards[0][0] == card[0]:
+                    return cards[0][0]
+        else:
+            card0 = 1
+            card1 = 1
+            for card in board_cards:
+                if card[0] == cards[0][0]:
+                    card0 += 1
+                if card[0] == cards[1][0]:
+                    card1 += 1
+            if card0 >= 3:
+                return cards[0][0]
+            if card1 >= 3:
+                return cards[1][0]
         return False
 
     def highCard(self, cards, board_cards):
-        high_card = cards[0][0]
-        if self.values.index(cards[1][0]) > self.values.index(high_card):
-            high_card = cards[1][0]
+        high_card = self.values[0]
+        for card in cards:
+            if self.values.index(card[0]) > self.values.index(high_card):
+                high_card = card[0]
         for card in board_cards:
             if self.values.index(card[0]) > self.values.index(high_card):
                 high_card = card[0]
         return high_card
 
+    def checkStraight(self, cards, board_cards):
+        return False
 
-    def updateCardStrength(self, my_delta, previous_state, street, my_cards, opp_cards):
+
+    def updateCardStrength(self, my_delta, game_state, previous_state, street, my_cards, opp_cards):
         board_cards = previous_state.deck[:street]
-        
-        print(self.check2Pair(my_cards, board_cards))
-        if self.check2Pair(my_cards, board_cards) != False:
-            print(my_cards, opp_cards, board_cards)
 
-        if self.checkFlush(my_cards, board_cards) or self.checkFlush(opp_cards, board_cards):
-            print('flush')
-            print(my_cards, opp_cards, board_cards)
+        my_high = self.highCard(my_cards, [])
+        opp_high = self.highCard(opp_cards, [])
+        board_high = self.highCard([], board_cards)
+
+        my_pair = self.checkPair(my_cards, board_cards)
+        opp_pair = self.checkPair(opp_cards, board_cards)
+
+        my_2pair = self.check2Pair(my_cards, board_cards)
+        opp_2pair = self.check2Pair(opp_cards, board_cards)
+
+        my_3ofKind = self.check3ofKind(my_cards, board_cards)
+        opp_3ofKind = self.check3ofKind(opp_cards, board_cards)
+
+        my_straight = self.checkStraight(my_cards, board_cards)
+        opp_straight = self.checkStraight(opp_cards, board_cards)
+
+        my_flush = self.checkFlush(my_cards, board_cards)
+        opp_flush = self.checkFlush(opp_cards, board_cards)
+
+        my_fullHouse = True if my_3ofKind != False and my_2pair != False else False
+        opp_fullHouse = True if opp_3ofKind != False and opp_2pair != False else False
+
+        my_4ofKind = False
+        opp_4ofKind = False #TODO
+
+        my_straightFlush = True if my_straight and my_flush else False
+        opp_straightFlush = True if opp_straight and opp_flush else False
+
+        my_besthand = opp_besthand = None
+        if my_straightFlush != False:
+            my_besthand = 'sf' 
+        elif my_fullHouse != False:
+            my_besthand = 'fh'
+        elif my_flush != False:
+            my_besthand = 'f'
+        elif my_straight != False:
+            my_besthand = 's'
+        elif my_3ofKind != False:
+            my_besthand = '3'
+        elif my_2pair != False:
+            my_besthand = '2'
+        elif my_pair != False:
+            my_besthand = '1'
+        else:
+            my_besthand = 'h'
+
+        if opp_straightFlush != False:
+            opp_besthand = 'sf' 
+        elif opp_fullHouse != False:
+            opp_besthand = 'fh'
+        elif opp_flush != False:
+            opp_besthand = 'f'
+        elif opp_straight != False:
+            opp_besthand = 's'
+        elif opp_3ofKind != False:
+            opp_besthand = '3'
+        elif opp_2pair != False:
+            opp_besthand = '2'
+        elif opp_pair != False:
+            opp_besthand = '1'
+        else:
+            opp_besthand = 'h'
+        
+
+        if opp_cards == []:
+            pass
+        elif my_flush != False or opp_flush != False:
+            # print(my_flush, opp_flush)
+            # print('flush')
+            # print(my_cards, opp_cards, board_cards)
+            if my_flush != False and opp_flush != False:
+                my_flush_high = self.highCard(my_cards, board_cards)
+                opp_flush_high = self.highCard(opp_cards, board_cards)
+
+                shared_cards = []
+                for card in my_flush:
+                    if card in opp_flush:
+                        shared_cards += card
+
+                shared_flush_high = self.highCard([], shared_cards)
+
+                if my_delta == 0:
+                    if self.values.index(my_flush_high) > self.values.index(shared_flush_high):
+                        self.values = swapPositions(self.values, my_flush_high, shared_flush_high)
+                        print('flush eq1', my_cards, opp_cards, board_cards)
+                    elif self.values.index(opp_flush_high) > self.values.index(shared_flush_high):
+                        self.values = swapPositions(self.values, opp_flush_high, shared_flush_high)
+                        print('flush eq2', my_cards, opp_cards, board_cards)
+
+
+                elif my_delta > 0:
+                    pass
+                elif my_delta < 0:
+                    pass
+
+
 
         elif my_delta == 0:
-            # print('tie')
-            # print(my_cards, opp_cards, board_cards)
-            if self.checkPair(my_cards, board_cards) != self.checkPair(opp_cards, board_cards) and self.check2Pair(my_cards, board_cards) == False:
+            # see if we have different pairs -> straight
+            if my_pair != opp_pair and my_2pair == False:
                 #check for pairs, if either of us has pair that both don't have we know there must be a straight
                 #straight?
                 pass
-            elif self.checkPair(my_cards, board_cards) == False and self.checkPair(opp_cards, board_cards) == False:
-                if self.highCard(my_cards, board_cards) != self.highCard(opp_cards, board_cards):
-                    if self.values.index(self.highCard(my_cards, board_cards)) > self.values.index(self.highCard(opp_cards, board_cards)):
-                        #swap my high card with higest shared card
-                        pass
-                    else:
-                        #swap opp high card with highest shared card
-                        pass
-                #swap value of my highest card with highest shared card value iff I think my highest card is better than highest shared card
-        elif my_delta >= 0:
-            #see how my hand is better than opp hand, update cards as needed
+            #neither of us has a pair
+            elif my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high:
+                #swap highest shared card with the card that the algorithm currently thinks is highest out of the group
+                # shared_card = self.highCard([], board_cards)
+                # if self.values.index(my_high) > self.values.index(opp_high):
+                #     self.values = swapPositions(self.values, my_high, shared_card)
+                #     print('eq1', my_cards, opp_cards, board_cards)
+                # else:
+                #     self.values = swapPositions(self.values, opp_high, shared_card)
+                #     print('eq2', my_cards, opp_cards, board_cards)
+                pass
+        elif my_delta > 0:
+            #test if we both have pairs
+            if my_besthand == '1' and opp_besthand == '1' and my_pair != opp_pair:
+                #if my pair is 'lower', switch it with 'higher' one
+                if self.values.index(my_pair) < self.values.index(opp_pair):
+                    self.values = swapPositions(self.values, my_pair, opp_pair)
+                    print('pos1', my_cards, opp_cards, board_cards)
+            #test if we both have high cards only
+            elif my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high:
+                #if my high card is 'lower', switch it with 'higher' one
+                if self.values.index(my_high) < self.values.index(opp_high):
+                    self.values = swapPositions(self.values, my_high, opp_high)
+                    print('pos2', my_cards, opp_cards, board_cards)
 
-            #check if both of us have pairs
-            #if so update highest card
+            #TODO check if hand strength doesn't amkes sense --> implies straight
 
-            #check if hand strength doesn't amkes sense --> implies straight
             pass
-        elif my_delta <= 0:
-            #see how opp hand is better than my hand, update cards as needed
-            pass
+        elif my_delta < 0:
+            #test is we both have pairs
+            if my_besthand == '1' and opp_besthand == '1' and my_pair != opp_pair:
+                #if opp pair is 'lower', switch it with 'higher' one
+                if self.values.index(my_pair) > self.values.index(opp_pair):
+                    self.values = swapPositions(self.values, opp_pair, my_pair)
+                    print('neg1', my_cards, opp_cards, board_cards)
+            #test if we both have high cards only
+            elif my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high:
+                #if opp high card is 'lower', switch it with 'higher' one
+                if self.values.index(my_high) > self.values.index(opp_high):
+                    self.values = swapPositions(self.values, opp_high, my_high)
+                    print('neg2', my_cards, opp_cards, board_cards)
+
+
+        #__________________________________________new idea partial order shit goes here_____________________________________
+
+
+        #kicker card goes forever need to implement those methods later
+
+        if my_besthand == '1' and opp_besthand == '1' and my_pair != opp_pair and opp_cards != []:
+            if my_delta == 0:
+                pass
+            elif my_delta > 0:
+                edge = (my_pair, opp_pair, game_state.round_num, 'pp') 
+                if edge not in self.edges: 
+                    self.edges.append(edge)
+                    # print('edges = ' + str(self.edges))
+            elif my_delta < 0:
+                edge = (opp_pair, my_pair, game_state.round_num, 'pn')
+                if edge not in self.edges:
+                    self.edges.append(edge)
+                    # print('edges = ' + str(self.edges))
+
+        if my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high and opp_cards != []:
+            if my_delta == 0:
+                pass
+            elif my_delta > 0:
+                edge = (my_high, opp_high, game_state.round_num, 'hp') #FIX LATER
+                if edge not in self.edges:
+                    self.edges.append(edge)
+                    # print('edges = ' + str(self.edges))
+            elif my_delta < 0:
+                edge = (opp_high, my_high, game_state.round_num, 'hn')
+                if edge not in self.edges:
+                    self.edges.append(edge)
+                    # print('edges = ' + str(self.edges))
+
+
+
 
 
     def determineHandStrength(self, my_cards, board_cards, active):
@@ -256,7 +438,21 @@ class Player(Bot):
     def determinePlayerRange(self, board_cards, Opp = True):
         pass
 
+def swapPositions(list, pos1, pos2): 
+    
+    p1 = list.index(pos1)  
+    p2 = list.index(pos2)
+    if p1 > p2:
+        list[p1], list[p1-1] = list[p1-1], list[p1]
+        list[p2+1], list[p2] = list[p2], list[p2+1] 
+        print(pos1, pos2)
+    else:
+        list[p1], list[p1+1] = list[p1+1], list[p1]
+        list[p2-1], list[p2] = list[p2], list[p2-1] 
+        print(pos2, pos1)
 
+    print(list)
+    return list
 
 
 if __name__ == '__main__':
