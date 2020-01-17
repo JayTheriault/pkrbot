@@ -232,9 +232,15 @@ class Player(Bot):
                     return RaiseAction(max_raise)
                 elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
                     return RaiseAction(max_raise)
+
+                if continue_cost == 0:
+                    return RaiseAction(min_raise)
             else:
                 if self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited]>starting_amount:
                     return RaiseAction(max_raise)
+                elif continue_cost < 5:
+                    return CheckAction() if CheckAction in legal_actions else CallAction()
+
 
         if CallAction in legal_actions:
             
@@ -243,11 +249,11 @@ class Player(Bot):
                     return CallAction()
                 elif self.check2Pair(my_cards, board_cards) and self.highCard(my_cards, []) in self.check2Pair(my_cards, board_cards):
                     return CallAction()
-                elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
-                    return CallAction()
-            else:
-                if self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited]>starting_amount:
-                    return CallAction()
+                # elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
+                #     return CallAction()
+            # else:
+            #     if self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited]>starting_amount:
+            #         return CallAction()
 
         if CheckAction in legal_actions:
             return CheckAction()
