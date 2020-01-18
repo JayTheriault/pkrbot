@@ -38,6 +38,8 @@ class Player(Bot):
 
         self.straights = []
 
+        self.winOut = False
+
         # card_strength = {v:self.values.index(v) for v in self.values}
         #creates dictionary to see what cards win
 
@@ -63,9 +65,17 @@ class Player(Bot):
 
         self.preflop = 0
         
+        NUM_ROUNDS = 1000
 
         if round_num == NUM_ROUNDS:
             pprint(self.straights)
+
+
+        #comment out if you want to see how much you beat a bot by
+        #otherwise this bot works to secure wins as soon as we have them
+        if my_bankroll > (NUM_ROUNDS-round_num) * 3/2 + 1 and self.winOut == False:
+            self.winOut = True
+            print(round_num)
 
     def handle_round_over(self, game_state, terminal_state, active):
         '''
@@ -125,81 +135,11 @@ class Player(Bot):
         #     print(self.edges)
         if my_stack == 0:
             return CheckAction()
-        # cards = my_cards
-        # if street==0 and self.preflop == 0:#pre flop strategy
-            
-        #     if cards[0][0]==cards[1][0]:#pairs
-        #         return RaiseAction(pot_after_continue/2)
-            
-        #     if cards[0][0]==self.values[12] or cards[1][0]==self.values[12]: #rwhenever there is an Ace
-        #         return RaiseAction(pot_after_continue/2)
 
-        #     elif cards[0][1]!=cards[1][1]:#different suit absolutes
-        #         if self.values.index(cards[0][0])+self.values.index(cards[1][0])<10:#folding on low values
-        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
-        #         elif self.values.index(cards[0][0])+self.values.index(cards[1][0])>16:
-        #             return RaiseAction(pot_after_continue/2)
-
-        #         elif cards[0][0]==self.values[8] and cards[1][0]==self.values[3]:
-        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
-        #         elif cards[0][0]==self.values[3] and cards[1][0]==self.values[8]:
-        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
-
-        #         elif cards[0][0]==self.values[8] and cards[1][0]==self.values[2]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[2] and cards[1][0]==self.values[8]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[7] and cards[1][0]==self.values[3]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[3] and cards[1][0]==self.values[7]:
-        #             return RaiseAction(pot_after_continue/2)
-
-        #     elif  cards[0][1]==cards[1][1]:#same suit absolutes
-        #         if cards[0][0]==self.values[0] or cards[1][0]==self.values[0]:
-        #             if self.values.index(cards[0][0])+self.values.index(cards[1][0]) < 9: #folding on low values
-        #                 return CheckAction() if CheckAction in legal_actions else FoldAction()
-
-        #         elif self.values.index(cards[0][0])+self.values.index(cards[1][0])>11:#raising high
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[1] or cards[1][0]==self.values[1]:
-        #             if self.values.index(cards[0][0])+self.values.index(cards[1][0])<11:
-        #                 if self.values.index(cards[0][0])+self.values.index(cards[1][0])>4:
-        #                     return CheckAction() if CheckAction in legal_actions else FoldAction()
-        #         elif cards[0][0]==self.values[6] and cards[1][0]==self.values[5]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[5] and cards[1][0]==self.values[6]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[5] and cards[1][0]==self.values[4]:
-        #             return RaiseAction(pot_after_continue/2)
-        #         elif cards[0][0]==self.values[4] and cards[1][0]==self.values[5]:
-        #             return RaiseAction(pot_after_continue/2)
-
-        #     elif active==True:#big blind
-               
-        #        return CheckAction() if CheckAction in legal_actions else CallAction()
-
-        #     else:#small blind
-
-        #         return RaiseAction(pot_after_continue/2) #maybe call under 10 value
-
-        #     self.preflop += 1
-
-        # elif street == 0 and self.preflop > 0:
-        #     return CheckAction() if CheckAction in legal_actions else CallAction()
+        if self.winOut:
+            return CheckAction() if CheckAction in legal_actions else FoldAction()
 
 
-        # else:
-        #     #after flop
-        #     if street == 3:
-        #         if self.checkFlush(my_cards, board_cards) or self.check3ofKind(my_cards, board_cards) or self.check2Pair(my_cards, board_cards) or (self.checkPair(my_cards, board_cards) != False and self.values.index(self.checkPair(my_cards, board_cards)) >= 9):
-        #             return RaiseAction(max_raise)
-
-        #     if self.checkFlush(my_cards, board_cards) or self.check3ofKind(my_cards, board_cards):
-        #         return RaiseAction(pot_after_continue)
-        #     elif self.checkPair(my_cards, board_cards):
-        #         return RaiseAction(pot_after_continue/2)
-        #     elif self.values.index(self.highCard(my_cards, [])) >10:
-        #         return CallAction() if continue_cost < my_contribution else FoldAction()
 
         highCard = self.highCard(my_cards, [])
 
@@ -737,3 +677,78 @@ if __name__ == '__main__':
 
 
 
+        # cards = my_cards
+        # if street==0 and self.preflop == 0:#pre flop strategy
+            
+        #     if cards[0][0]==cards[1][0]:#pairs
+        #         return RaiseAction(pot_after_continue/2)
+            
+        #     if cards[0][0]==self.values[12] or cards[1][0]==self.values[12]: #rwhenever there is an Ace
+        #         return RaiseAction(pot_after_continue/2)
+
+        #     elif cards[0][1]!=cards[1][1]:#different suit absolutes
+        #         if self.values.index(cards[0][0])+self.values.index(cards[1][0])<10:#folding on low values
+        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
+        #         elif self.values.index(cards[0][0])+self.values.index(cards[1][0])>16:
+        #             return RaiseAction(pot_after_continue/2)
+
+        #         elif cards[0][0]==self.values[8] and cards[1][0]==self.values[3]:
+        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
+        #         elif cards[0][0]==self.values[3] and cards[1][0]==self.values[8]:
+        #             return CheckAction() if CheckAction in legal_actions else FoldAction()
+
+        #         elif cards[0][0]==self.values[8] and cards[1][0]==self.values[2]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[2] and cards[1][0]==self.values[8]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[7] and cards[1][0]==self.values[3]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[3] and cards[1][0]==self.values[7]:
+        #             return RaiseAction(pot_after_continue/2)
+
+        #     elif  cards[0][1]==cards[1][1]:#same suit absolutes
+        #         if cards[0][0]==self.values[0] or cards[1][0]==self.values[0]:
+        #             if self.values.index(cards[0][0])+self.values.index(cards[1][0]) < 9: #folding on low values
+        #                 return CheckAction() if CheckAction in legal_actions else FoldAction()
+
+        #         elif self.values.index(cards[0][0])+self.values.index(cards[1][0])>11:#raising high
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[1] or cards[1][0]==self.values[1]:
+        #             if self.values.index(cards[0][0])+self.values.index(cards[1][0])<11:
+        #                 if self.values.index(cards[0][0])+self.values.index(cards[1][0])>4:
+        #                     return CheckAction() if CheckAction in legal_actions else FoldAction()
+        #         elif cards[0][0]==self.values[6] and cards[1][0]==self.values[5]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[5] and cards[1][0]==self.values[6]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[5] and cards[1][0]==self.values[4]:
+        #             return RaiseAction(pot_after_continue/2)
+        #         elif cards[0][0]==self.values[4] and cards[1][0]==self.values[5]:
+        #             return RaiseAction(pot_after_continue/2)
+
+        #     elif active==True:#big blind
+               
+        #        return CheckAction() if CheckAction in legal_actions else CallAction()
+
+        #     else:#small blind
+
+        #         return RaiseAction(pot_after_continue/2) #maybe call under 10 value
+
+        #     self.preflop += 1
+
+        # elif street == 0 and self.preflop > 0:
+        #     return CheckAction() if CheckAction in legal_actions else CallAction()
+
+
+        # else:
+        #     #after flop
+        #     if street == 3:
+        #         if self.checkFlush(my_cards, board_cards) or self.check3ofKind(my_cards, board_cards) or self.check2Pair(my_cards, board_cards) or (self.checkPair(my_cards, board_cards) != False and self.values.index(self.checkPair(my_cards, board_cards)) >= 9):
+        #             return RaiseAction(max_raise)
+
+        #     if self.checkFlush(my_cards, board_cards) or self.check3ofKind(my_cards, board_cards):
+        #         return RaiseAction(pot_after_continue)
+        #     elif self.checkPair(my_cards, board_cards):
+        #         return RaiseAction(pot_after_continue/2)
+        #     elif self.values.index(self.highCard(my_cards, [])) >10:
+        #         return CallAction() if continue_cost < my_contribution else FoldAction()
