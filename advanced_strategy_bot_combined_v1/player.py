@@ -1,6 +1,8 @@
 '''
 Simple example pokerbot, written in Python.
 '''
+import eval7
+from numpy.random import geometric
 from skeleton.actions import FoldAction, CallAction, CheckAction, RaiseAction
 from skeleton.states import GameState, TerminalState, RoundState
 from skeleton.states import NUM_ROUNDS, STARTING_STACK, BIG_BLIND, SMALL_BLIND
@@ -12,6 +14,17 @@ class Player(Bot):
     '''
     A pokerbot.
     '''
+    def permute_values(self):
+        '''
+        Selects a value permutation for the whole game according the prior distribution.
+        '''
+        orig_perm = list(range(13))[::-1]
+        prop_perm = []
+        seed = geometric(p=0.25, size=13) - 1
+        for s in seed:
+            pop_i = len(orig_perm) - 1 - (s % len(orig_perm))
+            prop_perm.append(orig_perm.pop(pop_i))
+        return prop_perm
 
     def __init__(self):
         '''
@@ -23,6 +36,33 @@ class Player(Bot):
         Returns:
         Nothing.
         '''
+        self.t = 1
+        self.islists = False
+        self.lists = []
+        self.cards = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
+        values = list('23456789TJQKA')
+        suits = list('cdhs')
+        self.proposal_perms = []
+        for j in range(20000):
+            # proposal_perm is a list with entries from 0 to 12
+            proposal_perm = self.permute_values()
+            perm_dict = {}
+            for i, v in enumerate(values):
+                for s in suits:
+                    card = v + s
+                    permuted_i = proposal_perm[i]
+                    permuted_v = values[permuted_i]
+                    permuted_card = eval7.Card(permuted_v + s)
+                    perm_dict[card] = permuted_card
+            # we've gone through the whole deck
+            self.proposal_perms.append(perm_dict)
+
+
+
+
+
+
+
         
         self.values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
 
@@ -74,8 +114,83 @@ class Player(Bot):
         street = previous_state.street  # 0, 3, 4, or 5 representing when this round ended
         my_cards = previous_state.hands[active]  # your cards
         opp_cards = previous_state.hands[1-active]  # opponent's cards or [] if not revealed
+        board_cards = previous_state.deck[:street]
 
         self.updateCardStrength(my_delta, game_state, previous_state, street, my_cards, opp_cards)
+
+        if game_state.round_num == NUM_ROUNDS:
+            print(self.values)
+
+        if opp_cards != []:  # we have a showdown
+            new_perms = []
+            for dicI, proposal_perm in enumerate(self.proposal_perms):  # check if valid
+                my_perm_cards = [proposal_perm[c] for c in my_cards]
+                opp_perm_cards = [proposal_perm[c] for c in opp_cards]
+                board_perm_cards = [proposal_perm[c] for c in board_cards]
+                my_cards_available = my_perm_cards + board_perm_cards
+                opp_cards_available = opp_perm_cards + board_perm_cards
+                my_strength = eval7.evaluate(my_cards_available)
+                opp_strength = eval7.evaluate(opp_cards_available)
+                # consistent with my win
+                if my_strength > opp_strength and my_delta > 0:
+                    new_perms.append(proposal_perm)
+
+                # consistent with opp win
+                elif my_strength < opp_strength and my_delta < 0:
+                    new_perms.append(proposal_perm)
+
+                elif my_delta != 0 and self.islists == True:
+                    my_high = self.highCard(my_cards, [])
+                    opp_high = self.highCard(my_cards, [])
+                    my_high_index = self.lists[dicI].index(my_high)
+                    opp_high_index = self.lists[dicI].index(opp_high)
+
+                    if my_strength < opp_strength and my_high_index < opp_high_index:
+                        for s in ['s', 'c', 'd', 'h']:
+                            op_c = self.proposal_perms[dicI][opp_high + s]
+                            my_c = self.proposal_perms[dicI][my_high + s]
+
+                            self.proposal_perms[dicI][opp_high + s] = self.proposal_perms[dicI][self.lists[dicI][opp_high_index - 1] + s]
+                            self.proposal_perms[dicI][self.lists[dicI][opp_high_index - 1] + s] = op_c
+
+                            self.proposal_perms[dicI][my_high + s] = self.proposal_perms[dicI][self.lists[dicI][my_high_index + 1] + s]
+                            self.proposal_perms[dicI][self.lists[dicI][my_high_index + 1] + s] = my_c
+
+                    elif my_strength > opp_strength and my_high_index > opp_high_index:
+                        for s in ['s', 'c', 'd', 'h']:
+                            op_c = self.proposal_perms[dicI][opp_high + s]
+                            my_c = self.proposal_perms[dicI][my_high + s]
+
+                            self.proposal_perms[dicI][opp_high + s] = self.proposal_perms[dicI][self.lists[dicI][opp_high_index + 1] + s]
+                            self.proposal_perms[dicI][self.lists[dicI][opp_high_index + 1] + s] = op_c
+
+                            self.proposal_perms[dicI][my_high + s] = self.proposal_perms[dicI][self.lists[dicI][my_high_index - 1] + s]
+                            self.proposal_perms[dicI][self.lists[dicI][my_high_index - 1] + s] = my_c
+
+
+                # consistent with a tie
+                if my_strength == opp_strength and my_delta == 0:
+                    new_perms.append(proposal_perm)
+
+            if len(new_perms) >= 1 and self.islists == False:
+                self.proposal_perms = new_perms
+
+            if len(self.proposal_perms) == 1:
+                self.islists = True
+                self.lists = []
+
+                for perm in self.proposal_perms:
+                    L = list(' ' for i in range(13))
+                    for c in self.cards:
+                        index = self.cards.index(str(perm[c + 's'])[0])
+                        L[index] = c
+                    self.lists.append(L)
+                self.values = self.lists[0]
+
+
+        if game_state.round_num == NUM_ROUNDS:
+            print(game_state.game_clock)
+            print(self.lists)
         
 
     def get_action(self, game_state, round_state, active):
@@ -213,6 +328,19 @@ class Player(Bot):
                     return RaiseAction(max_raise)
                 elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
                     return RaiseAction(max_raise)
+            else:
+                if (continue_cost/self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited])<((self.values.index(highCard)+2)/1.5):
+                    if self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited] < 30 and continue_cost < 30:
+                        return CallAction()
+                    elif self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited] < 30 and continue_cost > 50:
+                        return FoldAction()
+                    if (self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited])/2 < continue_cost:
+                        if (self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited])/2 >= 69 or (self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited]) >= continue_cost:
+                            return CallAction()
+                        else:
+                            return FoldAction
+                    return RaiseAction((self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited])/2 - continue_cost)
+
 
 
 
@@ -224,7 +352,7 @@ class Player(Bot):
 
     def checkFlush(self, cards, board_cards):
         '''
-        Returns True if there is a flush, False otherwise
+        Returns List of clubs if there is a flush, False otherwise
 
         '''
         clubs = []
@@ -573,9 +701,9 @@ def PreFlopStrat():
     
     
     
-    pre_flop_val_list=[50,1.7,1.8,2,2,2.1,2.5,3.7,6.5,8.8,13,19,48,50,10,13,7.1,2.5,2.7,4.9,8,11,14,20,50,50,24,16,14,10,7,11,14,16,26,50,50,29,24,19,14,12,16,24,32,50,50,36,31,27,25,19,29,36,50,50,43,36,36,32,20,49,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,1.4,1.4,1.5,1.5,1.6,2,2,3,5,7,12,29,50,2,2,2,2,2,2,3,5,7.5,13,32,50,2,2,2,2,3,4,5,8,13,35,50,2,3,3,4,4,6,9,14,37,50,11,7,5,6,7,10,15,35,50,16,11,10,9,10,16,41,50,21,18,14,13,19,43,50,32,29,24,24,45,50,46,46,50,50,50,50,50,50,50,50,50,50,50,50]
-    
+    pre_flop_val_list = [40,1.7,1.8,2,2,2.1,2.5,3.7,6.5,8.8,13,19,48,42,10,13,7.1,2.5,2.7,4.9,8,11,14,20,50,43,24,16,14,10,7,11,14,16,26,50,45,29,24,19,14,12,16,24,32,50,47,36,31,27,25,19,29,36,45,48,43,36,36,32,20,49,50,50,50,50,50,55,60,62,50,50,55,55,60,63,55,60,60,65,65,64,70,74,74.420,69,75,85,90,100,100,40,1.4,1.4,1.5,1.5,1.6,2,2,3,5,7,12,29,40,2,2,2,2,2,2,3,5,7.5,13,32,42,2,2,2,2,3,4,5,8,13,35,43,2,3,3,4,4,6,9,14,37,45,11,7,5,6,7,10,15,35,47,16,11,10,9,10,16,41,48,21,18,14,13,19,43,49,32,29,24,24,45,50,46,46,55,57,60,60,60,60,65,70,75,90,100,100]
     #print(len(pre_flop_val_list))
+
     for i in range(182):
         carddict[handcombos[i]]=pre_flop_val_list[i]
 
