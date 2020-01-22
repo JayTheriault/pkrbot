@@ -6,6 +6,7 @@ from skeleton.states import GameState, TerminalState, RoundState
 from skeleton.states import NUM_ROUNDS, STARTING_STACK, BIG_BLIND, SMALL_BLIND
 from skeleton.bot import Bot
 from skeleton.runner import parse_args, run_bot
+import random
 
 # from deuces.card import Card 
 # from deuces import Evaluator
@@ -28,6 +29,8 @@ class Player(Bot):
         Nothing.
         '''
         
+        self.CHECK_CALL = True
+
         self.values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
 
         self.nodes = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
@@ -36,9 +39,21 @@ class Player(Bot):
         self.handRankingDict = PreFlopStrat(True)
         self.carddict = PreFlopStrat()
 
+        self.poss_straights = []
         self.straights = []
 
         self.winOut = False
+
+        self.myraise=0
+        self.myother=1
+        self.theirraise=0
+        self.theirother=1
+
+
+        self.total_continue_cost=1
+        self.total_times=1
+        
+
 
         # card_strength = {v:self.values.index(v) for v in self.values}
         #creates dictionary to see what cards win
@@ -62,8 +77,6 @@ class Player(Bot):
         round_num = game_state.round_num  # the round number from 1 to NUM_ROUNDS
         my_cards = round_state.hands[active]  # your cards
         big_blind = bool(active)  # True if you are the big blind
-
-        self.preflop = 0
         
         NUM_ROUNDS = 1000
 
@@ -76,6 +89,8 @@ class Player(Bot):
         if my_bankroll > (NUM_ROUNDS-round_num) * 3/2 + 1 and self.winOut == False:
             self.winOut = True
             print(round_num)
+
+
 
     def handle_round_over(self, game_state, terminal_state, active):
         '''
@@ -96,6 +111,13 @@ class Player(Bot):
         opp_cards = previous_state.hands[1-active]  # opponent's cards or [] if not revealed
 
         self.updateCardStrength(my_delta, game_state, previous_state, street, my_cards, opp_cards)
+
+        self.myaggression=(self.myraise/(self.myraise+self.myother))
+        self.theiraggression=(self.theirraise/(self.theirraise+self.theirother))
+
+        self.deltaaggression=self.myaggression-self.theiraggression
+
+        self.av_continue_cost=(self.total_continue_cost/self.total_times)
         
 
     def get_action(self, game_state, round_state, active):
@@ -133,11 +155,28 @@ class Player(Bot):
 
         # if game_state.round_num == NUM_ROUNDS:
         #     print(self.edges)
+        
+        if self.CHECK_CALL:
+            return CheckAction() if CheckAction in legal_actions else CallAction()
+
+
         if my_stack == 0:
             return CheckAction()
 
         if self.winOut:
             return CheckAction() if CheckAction in legal_actions else FoldAction()
+
+
+        if ShakeOpponent()==True:
+            if CallAction in legal_actions:
+                return CallAction
+        elif ShakeOpponent()==False:
+            if RaiseAction in legal_actions:
+                return RaiseAction(max_raise-1)
+
+        self.total_continue_cost+=continue_cost
+        self.total_times+=1
+
 
 
 
@@ -149,36 +188,60 @@ class Player(Bot):
 
         starting_amount=35
 
+        shifty=ShiftOpponent()
+
+        starting_amount=starting_amount+8*(deltaaggression)
+        starting_amount=starting_amount+(continue_cost-av_continue_cost)/25
+        starting_amount=starting_amount+shifty
+
+        if street!=0:
+            if active==True: #ur big blind
+                if continue_cost==max_raise:
+                    self.theirraise+=1
+                else:
+                    self.theirother+=1
+
+
+
+
+
+
         if RaiseAction in legal_actions:#ur big blind
             if continue_cost==max_raise:
-                #if they have a strong hand
-                
+                self.theirraise +=1
                 starting_amount+=10
             
             elif continue_cost<(max_raise):
-                #if they have a really good hand
                 starting_amount+=10*(1-((max_raise-continue_cost)/max_raise))
+                self.theirother += 1
             
 
         if my_stack == 0:
+            self.myother +=1
             return CheckAction()
 
         if RaiseAction in legal_actions:
             
             if street != 0:
                 if self.check3ofKind(my_cards, board_cards) or self.checkFlush(my_cards, board_cards):
+                    self.myraise+=1
                     return RaiseAction(max_raise) 
                 elif self.check2Pair(my_cards, board_cards) and self.highCard(my_cards, []) in self.check2Pair(my_cards, board_cards):
+                    self.myraise+=1
                     return RaiseAction(max_raise)
                 elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
+                    self.myraise+=1
                     return RaiseAction(max_raise)
 
                 if continue_cost == 0:
+                    self.myraise+=1
                     return RaiseAction(min_raise)
             else:
                 if self.carddict[(self.values.index(lowCard), self.values.index(highCard)), suited]>starting_amount:
+                    self.myraise+=1
                     return RaiseAction(max_raise)
                 elif continue_cost < 5:
+                    self.myother+=1
                     return CheckAction() if CheckAction in legal_actions else CallAction()
 
 
@@ -186,8 +249,10 @@ class Player(Bot):
             
             if street != 0:
                 if self.check3ofKind(my_cards, board_cards) or self.checkFlush(my_cards, board_cards):
+                    self.myother+=1
                     return CallAction()
                 elif self.check2Pair(my_cards, board_cards) and self.highCard(my_cards, []) in self.check2Pair(my_cards, board_cards):
+                    self.myother+=1
                     return CallAction()
                 # elif self.checkPair(my_cards, board_cards) and self.highCard(my_cards, []) in self.checkPair(my_cards, board_cards):
                 #     return CallAction()
@@ -196,7 +261,9 @@ class Player(Bot):
             #         return CallAction()
 
         if CheckAction in legal_actions:
+            self.myother+=1
             return CheckAction()
+        self.myother+=1
         return FoldAction()
 
 
@@ -324,7 +391,7 @@ class Player(Bot):
         return high_card
 
     def checkStraight(self, cards, board_cards):
-        return False
+        return False #UPDATE
 
 
     def updateCardStrength(self, my_delta, game_state, previous_state, street, my_cards, opp_cards):
@@ -425,10 +492,12 @@ class Player(Bot):
                 #if we don't share any cards, then the board must be a straight
                 if my_cards[0][0] != opp_cards[0][0] and my_cards[0][0] != opp_cards[1][0] and my_cards[1][0] != opp_cards[0][0] and my_cards[1][0] != opp_cards[1][0]:
                     print('board straight', board_cards)
-                    self.straights.append(([], [], board_cards))
+                    self.poss_straights.append(([], [], board_cards))
+                    self.updateStraights('bs')
                 else:
                     print('shared straight', my_cards, opp_cards, board_cards)              #STRAIGHT
-                    self.straights.append((my_cards, opp_cards, board_cards))
+                    self.poss_straights.append((my_cards, opp_cards, board_cards))
+                    self.updateStraights('ss')
 
 
             #neither of us has a pair
@@ -436,10 +505,12 @@ class Player(Bot):
 
                 if my_cards[0][0] != opp_cards[0][0] and my_cards[0][0] != opp_cards[1][0] and my_cards[1][0] != opp_cards[0][0] and my_cards[1][0] != opp_cards[1][0]:
                     print('board straight', board_cards)
-                    self.straights.append(([], [], board_cards))
+                    self.poss_straights.append(([], [], board_cards))
+                    self.updateStraights('bs')
                 else:
                     print('shared straight', my_cards, opp_cards, board_cards)              #STRAIGHT
-                    self.straights.append((my_cards, opp_cards, board_cards))
+                    self.poss_straights.append((my_cards, opp_cards, board_cards))
+                    self.updateStraights('ss')
 
 
                 #add new high card code here
@@ -449,7 +520,8 @@ class Player(Bot):
                 #if my pair is 'lower', switch it with 'higher' one
                 if self.values.index(my_pair) + 4 < self.values.index(opp_pair):
                     print('my straight', my_cards, opp_cards, board_cards)                     #STRAIGHT
-                    self.straights.append((my_cards, [], board_cards))
+                    self.poss_straights.append((my_cards, [], board_cards))
+                    self.updateStraights('ms')
                 elif self.values.index(my_pair) < self.values.index(opp_pair):
                     self.values = swapPositions(self.values, my_pair, opp_pair)
                     print('pos1', my_cards, opp_cards, board_cards)
@@ -458,7 +530,8 @@ class Player(Bot):
                 #if my high card is 'lower', switch it with 'higher' one
                 if self.values.index(my_high) + 4 < self.values.index(opp_high):
                     print('my straight', my_cards, opp_cards, board_cards)                     #STRAIGHT
-                    self.straights.append((my_cards, [], board_cards))
+                    self.poss_straights.append((my_cards, [], board_cards))
+                    self.updateStraights('ms')
                 elif self.values.index(my_high) < self.values.index(opp_high):
                     self.values = swapPositions(self.values, my_high, opp_high)
                     print('pos2', my_cards, opp_cards, board_cards)
@@ -472,7 +545,8 @@ class Player(Bot):
                 #if opp pair is 'lower', switch it with 'higher' one
                 if self.values.index(my_pair) - 4 > self.values.index(opp_pair):
                     print('opp straight', my_cards, opp_cards, board_cards)                     #STRAIGHT
-                    self.straights.append(([], opp_cards, board_cards))
+                    self.poss_straights.append(([], opp_cards, board_cards))
+                    self.updateStraights('os')
                 elif self.values.index(my_pair) > self.values.index(opp_pair):
                     self.values = swapPositions(self.values, opp_pair, my_pair)
                     print('neg1', my_cards, opp_cards, board_cards)
@@ -481,7 +555,8 @@ class Player(Bot):
                 #if opp high card is 'lower', switch it with 'higher' one
                 if self.values.index(my_high) - 4 > self.values.index(opp_high):
                     print('opp straight', my_cards, opp_cards, board_cards)                     #STRAIGHT
-                    self.straights.append(([], opp_cards, board_cards))
+                    self.poss_straights.append(([], opp_cards, board_cards))
+                    self.updateStraights('os')
                 elif self.values.index(my_high) > self.values.index(opp_high):
                     self.values = swapPositions(self.values, opp_high, my_high)
                     print('neg2', my_cards, opp_cards, board_cards)
@@ -490,46 +565,35 @@ class Player(Bot):
         #__________________________________________new idea partial order shit goes here_____________________________________
 
 
-        #kicker card goes forever need to implement those methods later
+        # #kicker card goes forever need to implement those methods later
 
-        if my_besthand == '1' and opp_besthand == '1' and my_pair != opp_pair and opp_cards != []:
-            if my_delta == 0:
-                pass
-            elif my_delta > 0:
-                edge = (my_pair, opp_pair, game_state.round_num, 'pp') 
-                if edge not in self.edges: 
-                    self.edges.append(edge)
-                    # print('edges = ' + str(self.edges))
-            elif my_delta < 0:
-                edge = (opp_pair, my_pair, game_state.round_num, 'pn')
-                if edge not in self.edges:
-                    self.edges.append(edge)
-                    # print('edges = ' + str(self.edges))
+        # if my_besthand == '1' and opp_besthand == '1' and my_pair != opp_pair and opp_cards != []:
+        #     if my_delta == 0:
+        #         pass
+        #     elif my_delta > 0:
+        #         edge = (my_pair, opp_pair, game_state.round_num, 'pp') 
+        #         if edge not in self.edges: 
+        #             self.edges.append(edge)
+        #             # print('edges = ' + str(self.edges))
+        #     elif my_delta < 0:
+        #         edge = (opp_pair, my_pair, game_state.round_num, 'pn')
+        #         if edge not in self.edges:
+        #             self.edges.append(edge)
+        #             # print('edges = ' + str(self.edges))
 
-        if my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high and opp_cards != []:
-            if my_delta == 0:
-                pass
-            elif my_delta > 0:
-                edge = (my_high, opp_high, game_state.round_num, 'hp') #FIX LATER
-                if edge not in self.edges:
-                    self.edges.append(edge)
-                    # print('edges = ' + str(self.edges))
-            elif my_delta < 0:
-                edge = (opp_high, my_high, game_state.round_num, 'hn')
-                if edge not in self.edges:
-                    self.edges.append(edge)
-                    # print('edges = ' + str(self.edges))
-
-
-
-
-
-    def determineHandStrength(self, my_cards, board_cards, active):
-        big_blind = bool(active) #small blind has position advantage
-        pass
-
-    def determinePlayerRange(self, board_cards, Opp = True):
-        pass
+        # if my_besthand == 'h' and opp_besthand == 'h' and my_high != opp_high and opp_cards != []:
+        #     if my_delta == 0:
+        #         pass
+        #     elif my_delta > 0:
+        #         edge = (my_high, opp_high, game_state.round_num, 'hp') #FIX LATER
+        #         if edge not in self.edges:
+        #             self.edges.append(edge)
+        #             # print('edges = ' + str(self.edges))
+        #     elif my_delta < 0:
+        #         edge = (opp_high, my_high, game_state.round_num, 'hn')
+        #         if edge not in self.edges:
+        #             self.edges.append(edge)
+        #             # print('edges = ' + str(self.edges))
 
 
     def HeadsUpStrategyJay(self, game_state, round_state, active):
@@ -551,6 +615,76 @@ class Player(Bot):
             min_raise, max_raise = round_state.raise_bounds()  # the smallest and largest numbers of chips for a legal bet/raise
             min_cost = min_raise - my_pip  # the cost of a minimum bet/raise
             max_cost = max_raise - my_pip  # the cost of a maximum bet/raise
+
+        if my_bankroll > (NUM_ROUNDS-round_num) * 3/2 + 1 and self.winOut == False:
+            self.winOut = True
+
+        agressive = True
+
+        highCard = self.highCard(my_cards, [])
+
+        lowCard = my_cards[0][0] if my_cards[0][0] != highCard else my_cards[1][0]
+
+        suited = 's' if my_cards[0][1] == my_cards[1][1] else 'o'
+
+        my_rank = self.handRankingDict[(self.values.index(lowCard), self.values.index(highCard)), suited]
+
+        if agressive:
+            preflop = [10 + 5 * random.gauss(0,1), 40 + 10 * random.gauss(0,1), 80 + 10 * random.gauss(0,1)]
+        else:
+            preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 60 + 10 * random.gauss(0,1)]
+        
+
+
+        if street == 0:
+
+            if my_pip == 1: #small blind goes first pre flop
+
+                if my_rank < preflop[0]:
+                    return RaiseAction(min_raise)
+                if my_rank < preflop[1]:
+                    return RaiseAction(5)
+                elif my_rank < preflop[2]:
+                    return RaiseAction(min_raise)
+            elif my_pip == 2: #big blind goes second preflop
+                
+                if continue_cost == 0: #they limped
+                    if my_rank > 10:
+                        return CallAction()
+                    elif my_rank > 30:
+                        return RaiseAction()
+
+            else:
+                pass
+
+
+    def updateStraights(self, straight):
+        #check if it is board_straight, if so add to straights
+        my_cards = self.poss_straights[len(self.poss_straights)-1][0]
+        opp_cards = self.poss_straights[len(self.poss_straights)-1][1]
+        board_cards = self.poss_straights[len(self.poss_straights)-1][2]
+
+        if straight == 'bs':
+            s = []
+            for card in board_cards:
+                s.append(card[0])
+            self.straights.append(s)
+            self.poss_straights.pop()
+        elif straight == 'ss':
+            if my_cards[0][0] != opp_cards[0][0] and my_cards[0][0] != opp_cards[1][0] and \
+                my_cards[1][0] != opp_cards[0][0] and my_cards[1][0] != opp_cards[1][0]:
+
+                s = []
+                for card in board_cards:
+                    s.append(card[0])
+                self.straights.append(s)
+                self.poss_straights.pop()
+            else:
+                #if we share one card assume that card is in the straight
+                pass
+        else:
+            #check if any of our straights are consistant with straights we already have
+            pass
 
 
 
@@ -646,6 +780,7 @@ def PreFlopStrat(Jay = False):
 
     return carddict
 
+
 def swapPositions(list, pos1, pos2): 
     
     p1 = list.index(pos1)  
@@ -667,6 +802,20 @@ def swapPositions(list, pos1, pos2):
 
     print(list)
     return list
+
+def ShakeOpponent():
+    number=random.random()
+    if number>.99:
+        return True
+    elif number<.01:
+        return False
+    else:
+        return None
+def ShiftOpponent():
+    number=random.gauss(0,1)
+    shift_constant=5*number
+    return shift_constant
+
 
 
 
