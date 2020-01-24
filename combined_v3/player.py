@@ -659,10 +659,10 @@ class Player(Bot):
 
         if agressive:
             small_preflop = [10 + 5 * random.gauss(0,1), 40 + 10 * random.gauss(0,1), 100 + 10 * random.gauss(0,1)]
-            big_preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 80 + 10 * random.gauss(0,1)]
+            big_preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 70 + 10 * random.gauss(0,1)]
         else:
             small_preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 60 + 10 * random.gauss(0,1)]
-            big_preflop = [10 + 5 * random.gauss(0,1), 20 + 10 * random.gauss(0,1), 50 + 10 * random.gauss(0,1)]
+            big_preflop = [10 + 5 * random.gauss(0,1), 25 + 10 * random.gauss(0,1), 50 + 10 * random.gauss(0,1)]
         
 
 
@@ -672,11 +672,11 @@ class Player(Bot):
 
                 if my_rank < small_preflop[0]:
                     return RaiseAction(min_raise)
-                if my_rank < small_preflop[1]:
-                    return RaiseAction(5)
+                elif my_rank < small_preflop[1]:
+                    return RaiseAction(6)
                 elif my_rank < small_preflop[2]:
                     return RaiseAction(min_raise)
-                elif my_rank < 120:
+                elif my_rank < 110:
                     return CallAction()
                 else:
                     return FoldAction()
@@ -684,25 +684,25 @@ class Player(Bot):
                 
                 if continue_cost == 0: #they limped
                     if my_rank < big_preflop[0]:
-                        return CallAction()
+                        return CheckAction()
                     elif my_rank < big_preflop[1]:
                         return RaiseAction(5)
                     elif my_rank < big_preflop[2]:
-                        return CallAction()
+                        return CheckAction()
                     else:
-                        return FoldAction()
+                        return CheckAction()
 
                 else:
                     if continue_cost <= 5:
-                        if my_rank < big_preflop[1]-10:
+                        if my_rank < big_preflop[1]-7:
                             return RaiseAction((continue_cost + 1) * 2)
                         elif my_rank < big_preflop[2]-10:
                             return CallAction()
                         else:
                             return FoldAction()
                     elif continue_cost <= 25:
-                        if my_rank < big_preflop[1]-15:
-                            return RaiseAction(min_cost * 2)
+                        if my_rank < big_preflop[1]-12:
+                            return RaiseAction(min_raise * 2)
                         elif my_rank < big_preflop[2]-30:
                             return CallAction()
                         else:
@@ -715,7 +715,7 @@ class Player(Bot):
                         else:
                             return FoldAction()
                     elif continue_cost <= max_cost:
-                        if my_rank <= 9:
+                        if my_rank <= 9: #add AQ AJ
                             return CallAction()
                         else:
                             return FoldAction()
@@ -776,11 +776,480 @@ class Player(Bot):
                         else:
                             return FoldAction()
         elif street == 3:
-            pass
+            if my_pip == 0:
+                self.flop_worth = my_contribution
+
+                if self.flop_worth == 2: #call check
+                    if self.big_blind == False:
+
+                        if opp_pip == 0:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(10) if random.random() < .75 else CheckAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(10) if random.random() < .9 else CheckAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return RaiseAction(4) if random.random() < .7 else CheckAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return CheckAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <=5:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise * 2) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <= 10:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 25:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .75 else RaiseAction(min_raise)
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1':
+                                return CallAction() if random.random() < .9 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 50:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                                return CallAction() if random.random() < .5 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 100:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                                return CallAction() if random.random() < .2 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        else:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 8:
+                                return CallAction() if random.random() < .05 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                    else:
+                        if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                            return RaiseAction(10) if random.random() < .75 else CheckAction()
+                            #if we have top pair or a flush, med bet most of time but also check 30%
+                        elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                            return RaiseAction(10) if random.random() < .9 else CheckAction()
+                            #if we have 2 over cards or a smaller pair or flush draw med betting
+                        elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                            return RaiseAction(4) if random.random() < .7 else CheckAction()
+                            #if we have 1 over card small bet
+                        else:
+                            return CheckAction()
+                            #if we hit nothing check most of the time but small bet sometimes 20%
+
+
+                elif self.flop_worth <= 10: #small raise call (proably min raise)
+                    if self.big_blind == False:
+
+                        if opp_pip == 0:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(10) if random.random() < .75 else CheckAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(10) if random.random() < .9 else CheckAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return RaiseAction(4) if random.random() < .7 else CheckAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return CheckAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <=5:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise * 2) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <= 10:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 25:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .75 else RaiseAction(min_raise)
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1':
+                                return CallAction() if random.random() < .9 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 50:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                                return CallAction() if random.random() < .5 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 100:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                                return CallAction() if random.random() < .2 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        else:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 8:
+                                return CallAction() if random.random() < .05 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                    else:
+                        if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                            return RaiseAction(10) if random.random() < .75 else CheckAction()
+                            #if we have top pair or a flush, med bet most of time but also check 30%
+                        elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                            return RaiseAction(10) if random.random() < .9 else CheckAction()
+                            #if we have 2 over cards or a smaller pair or flush draw med betting
+                        elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                            return RaiseAction(5) if random.random() < .6 else CheckAction()
+                            #if we have 1 over card small bet
+                        else:
+                            return CheckAction()
+                            #if we hit nothing check most of the time but small bet sometimes 20%
+                elif self.flop_worth <= 25: #bigger raise (by them) or raise reraise call
+                    if self.big_blind == False:
+                        if opp_pip == 0:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(20) if random.random() < .75 else CheckAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(10) if random.random() < .9 else CheckAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            else:
+                                return CheckAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <=5:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise * 2) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' or self.values.index(lowCard) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <= 10:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(min_raise) if random.random() < .75 else CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1':
+                                return CallAction() if random.random() < .9 else CallAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 25:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .75 else RaiseAction(min_raise)
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                                return CallAction() if random.random() < .9 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 50:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 8:
+                                return CallAction() if random.random() < .5 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        if opp_pip <= 100:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .2 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        else:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .05 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+
+                    else:
+                        if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                            return RaiseAction(20) if random.random() < .75 else CheckAction()
+                            #if we have top pair or a flush, med bet most of time but also check 30%
+                        elif my_besthand == '1' and self.values.index(my_pair) >= 6:
+                            return RaiseAction(20) if random.random() < .9 else CheckAction()
+                            #if we have 2 over cards or a smaller pair or flush draw med betting
+                        elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                            return RaiseAction(10) if random.random() < .3 else CheckAction()
+                            #if we have 1 over card small bet
+                        else:
+                            return CheckAction()
+                            #if we hit nothing check most of the time but small bet sometimes 20%
+                elif self.flop_worth <= 100: #bunch of re raises or big raise by them
+                    if self.big_blind == False:
+
+                        if opp_pip == 0:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(50) if random.random() < .75 else CheckAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1':
+                                return RaiseAction(30) if random.random() < .9 else CheckAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return CheckAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return CheckAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <= 25:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .75 else RaiseAction(min_raise)
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 8:
+                                return CallAction() if random.random() < .7 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                        if opp_pip <= 100:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .2 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        else:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .05 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                    else:
+                        if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                            return RaiseAction(max_raise) if random.random() < .75 else CheckAction()
+                            #if we have top pair or a flush, med bet most of time but also check 30%
+                        elif my_besthand == '1' and self.values.index(my_pair) >= 7:
+                            return RaiseAction(max_raise/2) if random.random() < .9 else CheckAction()
+                            #if we have 2 over cards or a smaller pair or flush draw med betting
+                        elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                            return CheckAction()
+                            #if we have 1 over card small bet
+                        else:
+                            return CheckAction()
+                            #if we hit nothing check most of the time but small bet sometimes 20%
+                else: #really large raise or all in
+                    if self.big_blind == False:
+
+                        if opp_pip == 0:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return RaiseAction(max_raise) if random.random() < .75 else CheckAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 8:
+                                return RaiseAction(max_raise) if random.random() < .5 else CheckAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return CheckAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return CheckAction()
+                                #if we hit nothing check most of the time but small bet sometimes 20%
+
+                        if opp_pip <= 25:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction() if random.random() < .75 else RaiseAction(max_raise)
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 9:
+                                return CallAction() if random.random() < .7 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                        if opp_pip <= 100:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .2 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+                        else:
+                            if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                                return CallAction()
+                                #if we have top pair or a flush, med bet most of time but also check 30%
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 10:
+                                return CallAction() if random.random() < .05 else FoldAction()
+                                #if we have 2 over cards or a smaller pair or flush draw med betting
+                            elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                                return FoldAction()
+                                #if we have 1 over card small bet
+                            else:
+                                return FoldAction()
+
+                    else:
+                        if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                            return RaiseAction(max_raise) if random.random() < .75 else CheckAction()
+                            #if we have top pair or a flush, med bet most of time but also check 30%
+                        elif my_besthand == '1' and self.values.index(my_pair) >= 7:
+                            return RaiseAction(max_raise/2) if random.random() < .9 else CheckAction()
+                            #if we have 2 over cards or a smaller pair or flush draw med betting
+                        elif my_besthand == 'h' and my_high >= self.values.index(board_high):
+                            return CheckAction()
+                            #if we have 1 over card small bet
+                        else:
+                            return CheckAction()
+                            #if we hit nothing check most of the time but small bet sometimes 20%
+            else:
+                if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
+                    return CallAction()
+                    #if we have top pair or a flush, med bet most of time but also check 30%
+                elif my_besthand == '1':
+                    if self.values.index(my_pair) >= 10:
+                        return CallAction()
+                    elif self.values.index(my_pair) >= 7:
+                        return CallAction() if random.random() < .7 else FoldAction()
+                    elif self.values.index(my_pair) >= 5:
+                        return CallAction() if random.random() < .5 else FoldAction()
+                    else:
+                        return FoldAction
+                    #if we have 2 over cards or a smaller pair or flush draw med betting
+                else:
+                    return FoldAction()
+
         elif street == 4:
             pass
         else:
-
+            pass
 
     def updateStraights(self, straight):
         #check if it is board_straight, if so add to straights
