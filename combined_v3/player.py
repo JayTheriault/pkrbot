@@ -1100,7 +1100,7 @@ class Player(Bot):
                             if my_besthand == '2' or my_besthand == '3' or my_besthand == 'f' or my_besthand == '1' and my_pair == my_high and self.values.index(my_high) >= self.values.index(board_high):
                                 return RaiseAction(50) if random.random() < .75 else CheckAction()
                                 #if we have top pair or a flush, med bet most of time but also check 30%
-                            elif my_besthand == '1':
+                            elif my_besthand == '1' and self.values.index(my_pair) >= 7:
                                 return RaiseAction(30) if random.random() < .9 else CheckAction()
                                 #if we have 2 over cards or a smaller pair or flush draw med betting
                             elif my_besthand == 'h' and my_high >= self.values.index(board_high):
@@ -1241,13 +1241,14 @@ class Player(Bot):
                     elif self.values.index(my_pair) >= 5:
                         return CallAction() if random.random() < .5 else FoldAction()
                     else:
-                        return FoldAction
+                        return FoldAction()
                     #if we have 2 over cards or a smaller pair or flush draw med betting
                 else:
                     return FoldAction()
 
         elif street == 4:
-            pass
+            if my_pip == 0:
+                self.turn_worth = my_contribution
         else:
             pass
 
