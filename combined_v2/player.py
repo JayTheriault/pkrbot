@@ -29,7 +29,7 @@ class Player(Bot):
         Nothing.
         '''
         
-        self.CHECK_CALL = True
+        self.CHECK_CALL = False
 
         self.values = ['2','3','4','5','6','7','8','9','T','J','Q','K','A']
 
@@ -52,6 +52,13 @@ class Player(Bot):
 
         self.total_continue_cost=1
         self.total_times=1
+
+        self.myaggression=(self.myraise/(self.myraise+self.myother))
+        self.theiraggression=(self.theirraise/(self.theirraise+self.theirother))
+
+        self.deltaaggression=self.myaggression-self.theiraggression
+
+        self.av_continue_cost=(self.total_continue_cost/self.total_times)
         
 
 
@@ -77,6 +84,8 @@ class Player(Bot):
         round_num = game_state.round_num  # the round number from 1 to NUM_ROUNDS
         my_cards = round_state.hands[active]  # your cards
         big_blind = bool(active)  # True if you are the big blind
+
+        self.big_blind = big_blind
         
         NUM_ROUNDS = 1000
 
@@ -156,20 +165,20 @@ class Player(Bot):
         # if game_state.round_num == NUM_ROUNDS:
         #     print(self.edges)
         
-        if self.CHECK_CALL:
-            return CheckAction() if CheckAction in legal_actions else CallAction()
+        # if self.CHECK_CALL:
+        #     return CheckAction() if CheckAction in legal_actions else CallAction()
 
 
         if my_stack == 0:
             return CheckAction()
-
+`
         if self.winOut:
             return CheckAction() if CheckAction in legal_actions else FoldAction()
 
 
         if ShakeOpponent()==True:
             if CallAction in legal_actions:
-                return CallAction
+                return CallAction()
         elif ShakeOpponent()==False:
             if RaiseAction in legal_actions:
                 return RaiseAction(max_raise-1)
@@ -190,8 +199,8 @@ class Player(Bot):
 
         shifty=ShiftOpponent()
 
-        starting_amount=starting_amount+8*(deltaaggression)
-        starting_amount=starting_amount+(continue_cost-av_continue_cost)/25
+        starting_amount=starting_amount+8*(self.deltaaggression)
+        starting_amount=starting_amount+(continue_cost-self.av_continue_cost)/25
         starting_amount=starting_amount+shifty
 
         if street!=0:
@@ -322,11 +331,7 @@ class Player(Bot):
                 return card[0]
             if cards[1][0] == card[0]:
                 return card[0]
-
-            for card1 in board_cards:
-                for card2 in board_cards:
-                    if card1[0] == card2[0] and card1 != card2:
-                        return card[0]
+                
         return False
 
     def check2Pair(self, cards, board_cards):
@@ -349,11 +354,6 @@ class Player(Bot):
                     pairs.append(card[0])
                     poss_values.remove(card[0])
 
-            for card1 in board_cards:
-                for card2 in board_cards:
-                    if card1[0] == card2[0] and card1 != card2 and card1[0] in poss_values:
-                        pairs.append(card1[0])
-                        poss_values.remove(card1[0])
         if len(pairs) < 2:
             return False
         return pairs
@@ -616,8 +616,48 @@ class Player(Bot):
             min_cost = min_raise - my_pip  # the cost of a minimum bet/raise
             max_cost = max_raise - my_pip  # the cost of a maximum bet/raise
 
-        if my_bankroll > (NUM_ROUNDS-round_num) * 3/2 + 1 and self.winOut == False:
-            self.winOut = True
+        if self.winOut:
+            return CheckAction() if CheckAction in legal_actions else FoldAction()
+
+
+        board_cards = previous_state.deck[:street]
+
+        my_high = self.highCard(my_cards, [])
+        board_high = self.highCard([], board_cards)
+
+        my_pair = self.checkPair(my_cards, board_cards)
+
+        my_2pair = self.check2Pair(my_cards, board_cards)
+
+        my_3ofKind = self.check3ofKind(my_cards, board_cards)
+
+        my_straight = self.checkStraight(my_cards, board_cards)
+
+        my_flush = self.checkFlush(my_cards, board_cards)
+
+        my_fullHouse = True if my_3ofKind != False and my_2pair != False else False
+
+        my_4ofKind = False #TODO
+
+        my_straightFlush = True if my_straight and my_flush else False
+
+        my_besthand = None
+        if my_straightFlush != False:
+            my_besthand = 'sf' 
+        elif my_fullHouse != False:
+            my_besthand = 'fh'
+        elif my_flush != False:
+            my_besthand = 'f'
+        elif my_straight != False:
+            my_besthand = 's'
+        elif my_3ofKind != False:
+            my_besthand = '3'
+        elif my_2pair != False:
+            my_besthand = '2'
+        elif my_pair != False:
+            my_besthand = '1'
+        else:
+            my_besthand = 'h'
 
         agressive = True
 
@@ -630,9 +670,11 @@ class Player(Bot):
         my_rank = self.handRankingDict[(self.values.index(lowCard), self.values.index(highCard)), suited]
 
         if agressive:
-            preflop = [10 + 5 * random.gauss(0,1), 40 + 10 * random.gauss(0,1), 80 + 10 * random.gauss(0,1)]
+            small_preflop = [10 + 5 * random.gauss(0,1), 40 + 10 * random.gauss(0,1), 100 + 10 * random.gauss(0,1)]
+            big_preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 80 + 10 * random.gauss(0,1)]
         else:
-            preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 60 + 10 * random.gauss(0,1)]
+            small_preflop = [10 + 5 * random.gauss(0,1), 30 + 10 * random.gauss(0,1), 60 + 10 * random.gauss(0,1)]
+            big_preflop = [10 + 5 * random.gauss(0,1), 20 + 10 * random.gauss(0,1), 50 + 10 * random.gauss(0,1)]
         
 
 
@@ -640,22 +682,113 @@ class Player(Bot):
 
             if my_pip == 1: #small blind goes first pre flop
 
-                if my_rank < preflop[0]:
+                if my_rank < small_preflop[0]:
                     return RaiseAction(min_raise)
-                if my_rank < preflop[1]:
+                if my_rank < small_preflop[1]:
                     return RaiseAction(5)
-                elif my_rank < preflop[2]:
+                elif my_rank < small_preflop[2]:
                     return RaiseAction(min_raise)
+                elif my_rank < 120:
+                    return CallAction()
+                else:
+                    return FoldAction()
             elif my_pip == 2: #big blind goes second preflop
                 
                 if continue_cost == 0: #they limped
-                    if my_rank > 10:
+                    if my_rank < big_preflop[0]:
                         return CallAction()
-                    elif my_rank > 30:
-                        return RaiseAction()
+                    elif my_rank < big_preflop[1]:
+                        return RaiseAction(5)
+                    elif my_rank < big_preflop[2]:
+                        return CallAction()
+                    else:
+                        return FoldAction()
 
+                else:
+                    if continue_cost <= 5:
+                        if my_rank < big_preflop[1]-10:
+                            return RaiseAction((continue_cost + 1) * 2)
+                        elif my_rank < big_preflop[2]-10:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 25:
+                        if my_rank < big_preflop[1]-15:
+                            return RaiseAction(min_cost * 2)
+                        elif my_rank < big_preflop[2]-30:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 100:
+                        if my_rank < big_preflop[1]-20:
+                            return RaiseAction(min_cost)
+                        elif my_rank < big_preflop[2]-50:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= max_cost:
+                        if my_rank <= 9:
+                            return CallAction()
+                        else:
+                            return FoldAction()
             else:
-                pass
+                #they 3-bet (small blind) or 4-bet (big blind) us
+                if self.big_blind:
+                    if continue_cost <= 10:
+                        if my_rank < big_preflop[1]-15:
+                            return RaiseAction((continue_cost + 1) * 2)
+                        elif my_rank < big_preflop[2]-25:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 25:
+                        if my_rank < big_preflop[1]-20:
+                            return RaiseAction(min_cost * 2)
+                        elif my_rank < big_preflop[2]-30:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 100:
+                        if my_rank < big_preflop[1]-25:
+                            return RaiseAction(min_cost)
+                        elif my_rank < big_preflop[2]-60:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= max_cost:
+                        if my_rank <= 6:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                else:
+                    if continue_cost <= 10:
+                        if my_rank < big_preflop[1]-15:
+                            return RaiseAction((continue_cost + 1) * 2)
+                        elif my_rank < big_preflop[2]-25:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 25:
+                        if my_rank < big_preflop[1]-20:
+                            return RaiseAction(min_cost * 2)
+                        elif my_rank < big_preflop[2]-50:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= 100:
+                        if my_rank < big_preflop[1]-30:
+                            return RaiseAction(min_cost)
+                        elif my_rank < big_preflop[2]-80:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+                    elif continue_cost <= max_cost:
+                        if my_rank <= 6:
+                            return CallAction()
+                        else:
+                            return FoldAction()
+        else:
+            pass
 
 
     def updateStraights(self, straight):
